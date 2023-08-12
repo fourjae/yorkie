@@ -30,6 +30,16 @@ import (
 	"github.com/yorkie-team/yorkie/test/helper"
 )
 
+/**
+* `listEqual` is a helper function that the given tree is equal to the
+* expected list of nodes.
+ */
+func listEqual(t assert.TestingT, tree *json.Tree, expected []json.TreeNode) {
+	var nodes []json.TreeNode
+	nodes = json.PostorderTraversalTreeNode(tree.Structure())
+	assert.Equal(t, expected, nodes)
+}
+
 func TestTree(t *testing.T) {
 	clients := activeClients(t, 2)
 	c1, c2 := clients[0], clients[1]
@@ -112,7 +122,19 @@ func TestTree(t *testing.T) {
 			})
 			assert.Equal(t, "<doc><p>ab</p><ng><note>cd</note><note>ef</note></ng><bp>gh</bp></doc>", root.GetTree("t").ToXML())
 			assert.Equal(t, 18, root.GetTree("t").Len())
-			// TODO(krapie): add listEqual test later
+			listEqual(t, root.GetTree("t"),
+				[]json.TreeNode{
+					{Type: "text", Value: "ab"},
+					{Type: "p", Children: []json.TreeNode{}},
+					{Type: "text", Value: "cd"},
+					{Type: "note", Children: []json.TreeNode{}},
+					{Type: "text", Value: "ef"},
+					{Type: "note", Children: []json.TreeNode{}},
+					{Type: "ng", Children: []json.TreeNode{}},
+					{Type: "text", Value: "gh"},
+					{Type: "bp", Children: []json.TreeNode{}},
+					{Type: "doc", Children: []json.TreeNode{}},
+				})
 			return nil
 		})
 		assert.NoError(t, err)

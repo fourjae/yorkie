@@ -317,3 +317,25 @@ func buildDescendants(ctx *change.Context, n TreeNode, parent *crdt.TreeNode) er
 
 	return nil
 }
+
+// PostorderTraversalTreeNode Added listEqual function to compare Tree and TreeNode for tree test
+func PostorderTraversalTreeNode(node crdt.TreeNodeForTest) []TreeNode {
+	var result []TreeNode
+
+	for _, child := range node.Children {
+		result = append(result, PostorderTraversalTreeNode(child)...)
+	}
+
+	childrenField := []TreeNode(nil)
+	if node.Children != nil {
+		childrenField = []TreeNode{}
+	}
+
+	current := TreeNode{
+		Type:     node.Type,
+		Value:    node.Value,
+		Children: childrenField,
+	}
+
+	return append(result, current)
+}
