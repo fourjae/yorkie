@@ -60,6 +60,7 @@ var (
 	AdminPassword                         = server.DefaultAdminPassword
 	HousekeepingInterval                  = 10 * gotime.Second
 	HousekeepingCandidatesLimitPerProject = 10
+	HousekeepingProjectFetchSize          = 10
 
 	AdminTokenDuration         = "10s"
 	ClientDeactivateThreshold  = "10s"
@@ -113,9 +114,9 @@ func TextChangeContext(root *crdt.Root) *change.Context {
 	)
 }
 
-// IssuePos is a helper function that issues a new CRDTTreePos.
-func IssuePos(change *change.Context, offset ...int) *crdt.TreePos {
-	pos := &crdt.TreePos{
+// IssuePos is a helper function that issues a new CRDTTreeNodeID.
+func IssuePos(change *change.Context, offset ...int) *crdt.TreeNodeID {
+	pos := &crdt.TreeNodeID{
 		CreatedAt: change.IssueTimeTicket(),
 		Offset:    0,
 	}
@@ -132,35 +133,20 @@ func IssueTime(change *change.Context) *time.Ticket {
 	return change.IssueTimeTicket()
 }
 
-// ListEqual is a helper function that checks the nodes in the RGA in Tree.
-func ListEqual(t assert.TestingT, tree *crdt.Tree, expected []string) bool {
-	var nodes []*crdt.TreeNode
-	for _, node := range tree.Nodes() {
-		nodes = append(nodes, node)
-	}
-
-	var actual []string
-	for _, node := range nodes {
-		actual = append(actual, ToDiagnostic(node))
-	}
-
-	assert.Equal(t, expected, actual)
-
-	return true
-}
-
 // NodesBetweenEqual is a helper function that checks the nodes between the given
 // indexes.
 func NodesBetweenEqual(t assert.TestingT, tree *index.Tree[*crdt.TreeNode], from, to int, expected []string) bool {
 	var nodes []*crdt.TreeNode
-	err := tree.NodesBetween(from, to, func(node *crdt.TreeNode) {
+	var contains []index.TagContained
+	err := tree.NodesBetween(from, to, func(node *crdt.TreeNode, contain index.TagContained) {
 		nodes = append(nodes, node)
+		contains = append(contains, contain)
 	})
 	assert.NoError(t, err)
 
 	var actual []string
-	for _, node := range nodes {
-		actual = append(actual, ToDiagnostic(node))
+	for i := 0; i < len(nodes); i++ {
+		actual = append(actual, fmt.Sprintf("%s:%s", ToDiagnostic(nodes[i]), contains[i].ToString()))
 	}
 	assert.Equal(t, expected, actual)
 
@@ -225,6 +211,7 @@ func TestConfig() *server.Config {
 		Housekeeping: &housekeeping.Config{
 			Interval:                  HousekeepingInterval.String(),
 			CandidatesLimitPerProject: HousekeepingCandidatesLimitPerProject,
+			ProjectFetchSize:          HousekeepingProjectFetchSize,
 		},
 		Backend: &backend.Config{
 			AdminUser:                  server.DefaultAdminUser,
@@ -268,8 +255,8 @@ func TestDocKey(t testing.TB) key.Key {
 		return key.Key(name)
 	}
 
-	if len(name) > 60 {
-		name = name[:60]
+	if len(name) > 100 {
+		name = name[:100]
 	}
 
 	sb := strings.Builder{}
